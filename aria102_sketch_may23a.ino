@@ -21,7 +21,7 @@
 
 // current selected speed
 int currentMode = MODE_RUN;
-int currentSpeed = SECOND_SPEED;
+int currentSpeed = FIRST_SPEED;
 
 // current sensors raw values (0..1023)
 int sensorPhaseA = 0;
@@ -53,7 +53,7 @@ byte currentSensorACheckpoint = 0;
 byte currentSensorBCheckpoint = 0;
 
 // power
-int dcValue = DC_MAX_LEVEL;
+float dcValue = DC_MAX_LEVEL;
 float dcCorrection = 0.0;
 
 void setup() {
@@ -65,8 +65,8 @@ void setup() {
   initializeSensorsCheckpoints();
 
   if (DEBUG_MODE == false) {
-    // TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
-    // TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+     TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+     TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
   }
 
   Serial.begin(9600);
@@ -101,15 +101,11 @@ void waitNextSensorCheckpoint() {
     unsigned long currentTime = millis();
     long actualRoundTime = currentTime - sensorACheckpointTime[currentSensorACheckpoint];
 
-    int computedDcValue = map(actualRoundTime, expectedRoundTime - 100, expectedRoundTime + 100, DC_MIN_LEVEL, DC_MAX_LEVEL);
+    int computedDcValue = map(actualRoundTime, expectedRoundTime - 10, expectedRoundTime + 1000, DC_MIN_LEVEL, DC_MAX_LEVEL);
 
     dcValue = constrain(computedDcValue, DC_MIN_LEVEL, DC_MAX_LEVEL);
 
     applyMicroCorrection(actualRoundTime, expectedRoundTime);
-
-    Serial.print(expectedRoundTime);
-    Serial.print('\t');
-    Serial.println(actualRoundTime);
 
     sensorACheckpointTime[currentSensorACheckpoint] = currentTime;
     currentSensorACheckpoint = (currentSensorACheckpoint + 1) % sensorsCheckpointCount;
@@ -122,7 +118,7 @@ void waitNextSensorCheckpoint() {
     unsigned long currentTime = millis();
     long actualRoundTime = currentTime - sensorBCheckpointTime[currentSensorBCheckpoint];
 
-    int computedDcValue = map(actualRoundTime, expectedRoundTime - 100, expectedRoundTime + 100, DC_MIN_LEVEL, DC_MAX_LEVEL);
+    int computedDcValue = map(actualRoundTime, expectedRoundTime - 10, expectedRoundTime + 1000, DC_MIN_LEVEL, DC_MAX_LEVEL);
 
     dcValue = constrain(computedDcValue, DC_MIN_LEVEL, DC_MAX_LEVEL);
 
@@ -144,7 +140,7 @@ void readSensors() {
 
 void applyMicroCorrection(long actualRoundTime, long expectedRoundTime) {
   int timeDifference = abs(actualRoundTime - expectedRoundTime);
-  float correctionRate = constrain(map(timeDifference, 0, 50, 0, 20) / 100.0, .0, .2);
+  float correctionRate = constrain(map(timeDifference, 0, 50, 0, 20) / 100.0, .0, .1);
 
   if (actualRoundTime < expectedRoundTime) {
     // too fast
@@ -153,7 +149,7 @@ void applyMicroCorrection(long actualRoundTime, long expectedRoundTime) {
 
   if (actualRoundTime > expectedRoundTime) {
     // too slow
-    dcCorrection = min(100.0, dcCorrection + correctionRate);
+    dcCorrection = min(150.0, dcCorrection + correctionRate);
   }
 }
 
