@@ -108,9 +108,7 @@ void taskSyncMotorCoils() {
 }
 
 unsigned long lastCheckpointTime = 0;
-unsigned long prevRoundTime = 0;
-
-unsigned int calibrationLastTime = 0;
+float speedAccuracyRatio = 0.0;
 
 void taskCheckpointCross() {
   int expectedRoundTime = (1 / (currentSpeed / 60.0) * 1000.0);
@@ -129,15 +127,11 @@ void taskCheckpointCross() {
     float expectedCheckpointTime = expectedPercent / 10000.0 * expectedRoundTime;
     int actualCheckpointTime = now - lastCheckpointTime;
 
-    if (expectedCheckpointTime > actualCheckpointTime) {
-      stabilizerState.currentValue = max(DC_MIN_LEVEL, stabilizerState.currentValue - .1);
-    }
+    float accuracy = 100 / actualCheckpointTime * expectedCheckpointTime;
 
-    if (expectedCheckpointTime < actualCheckpointTime) {
-      stabilizerState.currentValue = min(DC_MAX_LEVEL, stabilizerState.currentValue + .1);
-    }
+    speedAccuracyRatio += (accuracy - speedAccuracyRatio) * 0.1;
 
-    Serial.println(stabilizerState.currentValue);
+    Serial.println(speedAccuracyRatio);
 
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
