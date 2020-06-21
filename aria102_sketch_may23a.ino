@@ -24,13 +24,13 @@ struct SensorCheckpoint {
   byte sensorId;
   int triggerLevel;
   char triggerDirection;
-  unsigned int offsetPercent;
+  byte offsetPercent;
 };
 
 struct StabilizerState {
   byte maxValue;
   byte minValue;
-  byte currentValue;
+  float currentValue;
 };
 
 
@@ -60,7 +60,7 @@ SensorCheckpoint checkpoints[sensorCheckpointsCount] = {
 unsigned int rawSensorValue[2] = { 0, 0 };
 int calibratedSensorValue[2] = { 0, 0 };
 
-StabilizerState stabilizerState = { DC_MIN_LEVEL, DC_MAX_LEVEL, 43 };
+StabilizerState stabilizerState = { DC_MIN_LEVEL, DC_MAX_LEVEL, DC_MAX_LEVEL };
 int acceleration = 0;
 
 byte currentCheckpoint = 0;
@@ -76,8 +76,8 @@ void setup() {
   pinMode(11, OUTPUT);
 
   if (DEBUG_MODE == false) {
-    //    TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
-    //    TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+//        TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+//        TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
   }
 
   Serial.begin(115200);
@@ -108,13 +108,12 @@ void taskSyncMotorCoils() {
 }
 
 unsigned long lastCheckpointTime = 0;
-unsigned long prevCycleTime = 0;
 unsigned long prevRoundTime = 0;
 
 unsigned int calibrationLastTime = 0;
 
 void taskCheckpointCross() {
-  int expectedRoundTime = (1 / (currentSpeed / 60.0) * 250.0);
+  int expectedRoundTime = (1 / (currentSpeed / 60.0) * 1000.0);
 
   SensorCheckpoint sc = checkpoints[currentCheckpoint];
   int level = sc.triggerLevel;
@@ -124,39 +123,23 @@ void taskCheckpointCross() {
   if (sign * sensorValue >= sign * level) {
     unsigned long now = millis();
     unsigned int expectedPercent = currentCheckpoint == 0
-                                   ? (10000 - checkpoints[sensorCheckpointsCount - 1].offsetPercent)
-                                   : (sc.offsetPercent - checkpoints[currentCheckpoint - 1].offsetPercent);
+                                   ? checkpoints[sensorCheckpointsCount - 1].offsetPercent
+                                   : sc.offsetPercent;
 
-    int expectedCheckpointTime = expectedPercent / 10000.0 * expectedRoundTime;
+    float expectedCheckpointTime = expectedPercent / 10000.0 * expectedRoundTime;
     int actualCheckpointTime = now - lastCheckpointTime;
 
-    if (currentCheckpoint == 0) {
-      unsigned long actualRoundTime = now - prevCycleTime;
-      Serial.print(actualRoundTime);
-      Serial.print(' ');
-      prevCycleTime = now;
+    if (expectedCheckpointTime > actualCheckpointTime) {
+      stabilizerState.currentValue = max(DC_MIN_LEVEL, stabilizerState.currentValue - .1);
     }
 
-    if (currentCheckpoint % 20 == 0) {
-//      unsigned long actualRoundTime = now - prevCycleTime;
-
-//      if (prevCycleTime > 0) {
-//        acceleration = constrain((int) prevRoundTime - (int) actualRoundTime, -50, 50);
-//
-//        prevRoundTime = actualRoundTime;
-//      }
-
-//      prevCycleTime = now;
+    if (expectedCheckpointTime < actualCheckpointTime) {
+      stabilizerState.currentValue = min(DC_MAX_LEVEL, stabilizerState.currentValue + .1);
     }
 
-    Serial.print(now - lastCheckpointTime);
-    Serial.print(' ');
+    Serial.println(stabilizerState.currentValue);
 
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
-
-    if (currentCheckpoint == 0) {
-        Serial.print('\n');
-    }
   }
 }
