@@ -87,6 +87,8 @@ void loop() {
   taskReadSensors();
   taskCheckpointCross();
   taskSyncMotorCoils();
+  taskSyncAverages();
+  taskAdjustDcPower();
 }
 
 void taskReadSensors() {
@@ -108,7 +110,9 @@ void taskSyncMotorCoils() {
 }
 
 unsigned long lastCheckpointTime = 0;
+
 float speedAccuracyRatio = 0.0;
+float speedAccuracyRatioAverage = 0.0;
 
 void taskCheckpointCross() {
   int expectedRoundTime = (1 / (currentSpeed / 60.0) * 1000.0);
@@ -127,22 +131,36 @@ void taskCheckpointCross() {
     float expectedCheckpointTime = expectedPercent / 10000.0 * expectedRoundTime;
     int actualCheckpointTime = now - lastCheckpointTime;
 
-    float accuracy = 100 / actualCheckpointTime * expectedCheckpointTime;
-
-    speedAccuracyRatio += (accuracy - speedAccuracyRatio) * 0.025;
+    speedAccuracyRatio = 100 / actualCheckpointTime * expectedCheckpointTime;
 
 
-    int dc = map(speedAccuracyRatio, 30, 130, DC_MAX_LEVEL, DC_MIN_LEVEL);
 
-    dc = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
-
-    stabilizerState.currentValue += (dc - stabilizerState.currentValue) * 0.1;
-
-    Serial.print(speedAccuracyRatio);
-    Serial.print('\t');
-    Serial.println(stabilizerState.currentValue);
 
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
+  }
+}
+
+unsigned long prevSyncAveragesTime = 0;
+void taskSyncAverages() {
+  unsigned long now = millis();
+  if (now - prevSyncAveragesTime > 10) {
+    speedAccuracyRatioAverage += (speedAccuracyRatio - speedAccuracyRatioAverage) * 0.01;
+    prevSyncAveragesTime = now;
+  }
+}
+
+long n = 0;
+
+void taskAdjustDcPower() {
+  int dc = map(speedAccuracyRatioAverage * 10.0, 300.0, 1300.0, DC_MAX_LEVEL, DC_MIN_LEVEL);
+  dc = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
+  stabilizerState.currentValue += (dc - stabilizerState.currentValue) * 0.1;
+
+  n += 1;
+  if (n % 10 == 0) {
+    Serial.print(speedAccuracyRatioAverage);
+    Serial.print('\t');
+    Serial.println(stabilizerState.currentValue);
   }
 }
