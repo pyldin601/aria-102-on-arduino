@@ -41,10 +41,10 @@ SensorCheckpoint checkpoints[sensorCheckpointsCount] = {
   { 1, 0, -1, 114 }, { 1, -100, -1, 114 }, { 1, -200, -1, 122 }, { 0,  200, -1, 149 }, { 0,  100, -1, 126 },
   { 0, 0, -1, 118 }, { 0, -100, -1, 118 }, { 0, -200, -1, 122 }, { 1,  -200, 1, 181 }, { 1, -100,  1, 118 },
 
-  { 1, 0,  1, 110 }, { 1,  100,  1, 110 }, { 1,  200,  1, 114 }, { 0, -200,  1, 114 }, { 0, -100,   1, 126 },
-  { 0, 0,  1, 110 }, { 0,  100,  1, 114 }, { 0,  200,  1, 118 }, { 1,  200, -1, 196 }, { 1,  100,  -1, 114 },
-  { 1, 0, -1, 110 }, { 1, -100, -1, 110 }, { 1, -200, -1, 110 }, { 0,  200, -1, 173 }, { 0,  100,  -1, 118 },
-  { 0, 0, -1, 114 }, { 0, -100, -1, 110 }, { 0, -200, -1, 122 }, { 1, -200,  1, 232 }, { 1,  -100,  1, 106 },
+  { 1, 0,  1, 110 }, { 1,  100,  1, 110 }, { 1,  200,  1, 114 }, { 0, -200,  1, 114 }, { 0, -100,  1, 126 },
+  { 0, 0,  1, 110 }, { 0,  100,  1, 114 }, { 0,  200,  1, 118 }, { 1,  200, -1, 196 }, { 1,  100, -1, 114 },
+  { 1, 0, -1, 110 }, { 1, -100, -1, 110 }, { 1, -200, -1, 110 }, { 0,  200, -1, 173 }, { 0,  100, -1, 118 },
+  { 0, 0, -1, 114 }, { 0, -100, -1, 110 }, { 0, -200, -1, 122 }, { 1, -200,  1, 232 }, { 1, -100,  1, 106 },
 
   { 1, 0,  1, 110 }, { 1,  100,  1, 102 }, { 1,  200,  1, 114 }, { 0, -200,  1, 122 }, { 0, -100,  1, 122 },
   { 0, 0,  1, 110 }, { 0,  100,  1, 110 }, { 0,  200,  1, 118 }, { 1,  200, -1, 181 }, { 1,  100, -1, 114 },
@@ -131,11 +131,16 @@ void taskCheckpointCross() {
 
     speedAccuracyRatio += (accuracy - speedAccuracyRatio) * 0.1;
 
-    Serial.println(speedAccuracyRatio);
 
-    int dc = map(speedAccuracyRatio, 50, 150, DC_MAX_LEVEL, DC_MIN_LEVEL);
+    int dc = map(speedAccuracyRatio, 30, 130, DC_MAX_LEVEL, DC_MIN_LEVEL);
 
-    stabilizerState.currentValue = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
+    dc = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
+
+    stabilizerState.currentValue += (dc - stabilizerState.currentValue) * 0.1;
+
+    Serial.print(speedAccuracyRatio);
+    Serial.print('\t');
+    Serial.println(stabilizerState.currentValue);
 
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
