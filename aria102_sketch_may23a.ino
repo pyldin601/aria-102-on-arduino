@@ -129,7 +129,7 @@ void taskCheckpointCross() {
 
     float accuracy = 100 / actualCheckpointTime * expectedCheckpointTime;
 
-    speedAccuracyRatio += (accuracy - speedAccuracyRatio) * 0.1;
+    speedAccuracyRatio += (accuracy - speedAccuracyRatio) * 0.025;
 
 
     int dc = map(speedAccuracyRatio, 30, 130, DC_MAX_LEVEL, DC_MIN_LEVEL);
