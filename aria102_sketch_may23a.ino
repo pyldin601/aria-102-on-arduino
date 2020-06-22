@@ -76,8 +76,8 @@ void setup() {
   pinMode(11, OUTPUT);
 
   if (DEBUG_MODE == false) {
-//        TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
-//        TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+    //        TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+    //        TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
   }
 
   Serial.begin(115200);
@@ -132,6 +132,10 @@ void taskCheckpointCross() {
     speedAccuracyRatio += (accuracy - speedAccuracyRatio) * 0.1;
 
     Serial.println(speedAccuracyRatio);
+
+    int dc = map(speedAccuracyRatio, 50, 150, DC_MAX_LEVEL, DC_MIN_LEVEL);
+
+    stabilizerState.currentValue = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
 
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
