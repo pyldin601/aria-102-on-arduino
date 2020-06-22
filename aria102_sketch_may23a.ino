@@ -76,8 +76,8 @@ void setup() {
   pinMode(11, OUTPUT);
 
   if (DEBUG_MODE == false) {
-    //        TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
-    //        TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+    TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+    TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
   }
 
   Serial.begin(115200);
