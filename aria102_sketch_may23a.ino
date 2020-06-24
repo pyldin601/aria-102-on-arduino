@@ -171,7 +171,7 @@ void taskSyncAverages() {
 
 long n = 0;
 void taskAdjustDcPower() {
-  int dc = map((speedAccuracyRatioAverage) * 10.0, 300.0, 1300.0, DC_MAX_LEVEL, DC_MIN_LEVEL);
+  int dc = map((speedAccuracyRatioAverage) * 10.0, 175.0, 1175.0, DC_MAX_LEVEL, DC_MIN_LEVEL);
   dc = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
   stabilizerState.currentValue += (dc - stabilizerState.currentValue) * 0.5;
 }
