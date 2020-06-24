@@ -12,13 +12,12 @@
 #define DC_MID_LEVEL 64
 #define DC_MAX_LEVEL 255
 
-#define FIRST_SPEED 33 + 1 / 3
-#define SECOND_SPEED 45
-#define MOON_SPEED 500
+#define STATE_STANDBY         0
+#define STATE_ACCELERATE      1
+#define STATE_RESYNC          2
+#define STATE_SYNC            3
+#define STATE_BREAK           4
 
-#define MODE_STOP 0
-#define MODE_RUN 1
-#define MODE_BREAK 2
 
 struct SensorCheckpoint {
   byte sensorId;
@@ -60,14 +59,24 @@ SensorCheckpoint checkpoints[sensorCheckpointsCount] = {
 unsigned int rawSensorValue[2] = { 0, 0 };
 int calibratedSensorValue[2] = { 0, 0 };
 
+const byte speedsCount = 3;
+float rotationSpeeds[speedsCount] = {
+  33.0 + 1 / 3.0,
+  45.0,
+  78,
+};
+
 StabilizerState stabilizerState = { DC_MIN_LEVEL, DC_MAX_LEVEL, DC_MAX_LEVEL };
 int acceleration = 0;
 
 byte currentCheckpoint = 0;
 
-// current selected speed
-int currentMode = MODE_RUN;
-int currentSpeed = SECOND_SPEED;
+// Current Program State
+byte state = STATE_STANDBY;
+byte speed = 0;
+
+// Sine Generator
+unsigned long sineSyncMillis = 0;
 
 void setup() {
   pinMode(3, OUTPUT);
@@ -109,13 +118,26 @@ void taskSyncMotorCoils() {
   analogWrite(11, constrain(max(0, amplifiedValueB), 0, 255));
 }
 
+void taskSyncMotorCoilsToSine() {
+  unsigned long now = millis();
+  float expectedRoundTime = getExpectedRoundTime() / 4.0;
+
+  int amplifiedValueA = amplifySensorValue(255 * sin(2 * PI / expectedRoundTime * (now - sineSyncMillis)));
+  int amplifiedValueB = amplifySensorValue(255 * cos(2 * PI / expectedRoundTime * (now - sineSyncMillis)));
+
+  analogWrite(3, constrain(max(0, amplifiedValueA), 0, 255));
+  analogWrite(9, constrain(-min(0, amplifiedValueB), 0, 255));
+  analogWrite(10, constrain(-min(0, amplifiedValueA), 0, 255));
+  analogWrite(11, constrain(max(0, amplifiedValueB), 0, 255));
+}
+
 unsigned long lastCheckpointTime = 0;
 
 float speedAccuracyRatio = 0.0;
 float speedAccuracyRatioAverage = 0.0;
 
 void taskCheckpointCross() {
-  int expectedRoundTime = (1 / (currentSpeed / 60.0) * 1000.0);
+  int expectedRoundTime = getExpectedRoundTime();
 
   SensorCheckpoint sc = checkpoints[currentCheckpoint];
   int level = sc.triggerLevel;
@@ -133,9 +155,6 @@ void taskCheckpointCross() {
 
     speedAccuracyRatio = 100 / actualCheckpointTime * expectedCheckpointTime;
 
-
-
-
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
   }
@@ -145,22 +164,22 @@ unsigned long prevSyncAveragesTime = 0;
 void taskSyncAverages() {
   unsigned long now = millis();
   if (now - prevSyncAveragesTime > 10) {
-    speedAccuracyRatioAverage += (speedAccuracyRatio - speedAccuracyRatioAverage) * 0.01;
+    speedAccuracyRatioAverage += (speedAccuracyRatio - speedAccuracyRatioAverage) * 0.5;
     prevSyncAveragesTime = now;
   }
 }
 
 long n = 0;
-
 void taskAdjustDcPower() {
-  int dc = map(speedAccuracyRatioAverage * 10.0, 300.0, 1300.0, DC_MAX_LEVEL, DC_MIN_LEVEL);
+  int dc = map((speedAccuracyRatioAverage) * 10.0, 300.0, 1300.0, DC_MAX_LEVEL, DC_MIN_LEVEL);
   dc = constrain(dc, DC_MIN_LEVEL, DC_MAX_LEVEL);
-  stabilizerState.currentValue += (dc - stabilizerState.currentValue) * 0.1;
+  stabilizerState.currentValue += (dc - stabilizerState.currentValue) * 0.5;
+}
 
-  n += 1;
-  if (n % 10 == 0) {
-    Serial.print(speedAccuracyRatioAverage);
-    Serial.print('\t');
-    Serial.println(stabilizerState.currentValue);
-  }
+float getExpectedRoundTime() {
+  return (1 / (rotationSpeeds[speed] / 60.0) * 1000.0);
+}
+
+float amplifySensorValue(float sensorValue) {
+  return min(255, stabilizerState.currentValue) / 255.0 * sensorValue;
 }
