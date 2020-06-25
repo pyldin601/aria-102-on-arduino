@@ -14,8 +14,8 @@
 
 #define STATE_STANDBY         0
 #define STATE_ACCELERATE      1
-#define STATE_RESYNC          2
-#define STATE_SYNC            3
+#define STATE_SYNC            2
+#define STATE_GENERATOR       3
 #define STATE_BREAK           4
 
 
@@ -72,7 +72,6 @@ int acceleration = 0;
 byte currentCheckpoint = 0;
 
 // Current Program State
-byte state = STATE_STANDBY;
 byte speed = 0;
 
 // Sine Generator
@@ -85,11 +84,11 @@ void setup() {
   pinMode(11, OUTPUT);
 
   if (DEBUG_MODE == false) {
-    TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
-    TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+        TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
+        TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
   }
 
-  Serial.begin(115200);
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -118,23 +117,12 @@ void taskSyncMotorCoils() {
   analogWrite(11, constrain(max(0, amplifiedValueB), 0, 255));
 }
 
-void taskSyncMotorCoilsToSine() {
-  unsigned long now = millis();
-  float expectedRoundTime = getExpectedRoundTime() / 4.0;
-
-  int amplifiedValueA = amplifySensorValue(255 * sin(2 * PI / expectedRoundTime * (now - sineSyncMillis)));
-  int amplifiedValueB = amplifySensorValue(255 * cos(2 * PI / expectedRoundTime * (now - sineSyncMillis)));
-
-  analogWrite(3, constrain(max(0, amplifiedValueA), 0, 255));
-  analogWrite(9, constrain(-min(0, amplifiedValueB), 0, 255));
-  analogWrite(10, constrain(-min(0, amplifiedValueA), 0, 255));
-  analogWrite(11, constrain(max(0, amplifiedValueB), 0, 255));
-}
-
 unsigned long lastCheckpointTime = 0;
 
 float speedAccuracyRatio = 0.0;
 float speedAccuracyRatioAverage = 0.0;
+
+unsigned long last = 0;
 
 void taskCheckpointCross() {
   int expectedRoundTime = getExpectedRoundTime();
@@ -155,8 +143,14 @@ void taskCheckpointCross() {
 
     speedAccuracyRatio = 100 / actualCheckpointTime * expectedCheckpointTime;
 
+
     lastCheckpointTime = now;
     currentCheckpoint = (currentCheckpoint + 1) % sensorCheckpointsCount;
+
+    if (currentCheckpoint % 20 == 0) {
+      Serial.println(now - last);
+      last = now;
+    }
   }
 }
 
