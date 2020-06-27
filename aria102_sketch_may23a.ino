@@ -90,6 +90,8 @@ void setup() {
     TCCR2B = TCCR2B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
     TCCR1B = TCCR1B & B11111000 | B00000001; // for PWM frequency of 31372.55 Hz
   }
+
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -154,12 +156,9 @@ void taskControlRotation() {
 }
 
 void taskSyncPwmToRotationSpeed() {
-  if (speedAccuracyRatio < 80) {
-    pwmValue = PWM_LEVEL_MAX;
-    return;
-  }
   float fineTune = getSpeedFineTune();
   pwmValue = constrain(map(speedAccuracyRatio * 10.0 + fineTune, 800, 1050, 100, 64), 0, 255);
+  Serial.println(pwmValue);
 }
 
 void taskSyncAnchorsPwmValues() {
